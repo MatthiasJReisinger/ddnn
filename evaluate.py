@@ -12,7 +12,8 @@ def test_outage(model, test_loader, num_devices, outages):
     for data, target in tqdm(test_loader, leave=False):
         for outage in outages:
             data[:, outage] = 0
-        data, target = data.cuda(), target.cuda()
+        if torch.cuda.is_available():
+            data, target = data.cuda(), target.cuda()
         data, target = Variable(data), Variable(target)
         predictions = model(data)
         cloud_pred = predictions[-1]
@@ -48,7 +49,12 @@ if __name__ == '__main__':
     x, _ = train_loader.__iter__().next()
     num_devices = x.shape[1]
     in_channels = x.shape[2]
-    model = torch.load(args.model_path)
+
+    map_location = None
+    if not torch.cuda.is_available():
+        map_location = torch.device('cpu')
+    model = torch.load(args.model_path, map_location=torch.device('cpu'))
+
     for i in range(num_devices):
         outages = [i]
         acc = test_outage(model, test_loader, num_devices, outages)
