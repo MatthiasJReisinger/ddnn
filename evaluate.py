@@ -28,13 +28,11 @@ def test_outage(model, test_loader, num_devices, outages):
 
     return 100. * (num_correct / N)
 
+# This function illustrates how to access the individual parts of the DDNN.
+# The model argument holds a trained DDNN instance, i.e. it is an instance of the DDNN class (defined in net.py) and
+# therefore we can directly access all of its attributes. So instead of executing the whole DDNN at once we can for
+# example access and execute its device and cloud layers separately which is demonstrated in the code parts below.
 def trigger_device_and_cloud_models_separately(model, test_loader):
-    # This function is an illustration of how to access the individual parts of the DDNN.
-    # The model argument holds a trained DDNN instance, i.e. it is an instance of the DDNN class (defined in net.py)
-    # and therefore we can directly access all of its attributes. So instead of executing the whole DDNN at once we can
-    # for example access and execute its device and cloud layers separately which is demonstrated in the code parts
-    # below.
-
     model.eval()
 
     # holds the number of correctly classified training samples
@@ -53,7 +51,8 @@ def trigger_device_and_cloud_models_separately(model, test_loader):
         # Loop over the devices in the DDNN model and invoke their corresponding layers.
         device_outputs = []
         for device_index in range(len(model.device_models)):
-            # Get the model for the specific device with the current index.
+            # Get the model for the specific device with the current index. This is the "collection" of layers that
+            # would be executed on the devices.
             device_model = model.device_models[device_index]
 
             # Extract the input data for the device from the current batch.
@@ -63,12 +62,12 @@ def trigger_device_and_cloud_models_separately(model, test_loader):
             # output of the forward() method. So here it invokes the forward() method defined in DeviceModel (see
             # net.py) and therefore returns the following values:
             # * the device_output is the tensor output of the layers that are part of the device model - this is the
-            #   data the we would send to the next layer if we don't take an early exit
-            # * the device_prediction that would have to be used to decide if we want take the early exit (here we do
+            #   data we would send to the next layer if we don't take an early exit
+            # * the device_prediction that would have to be used to decide if we want to take the early exit (here we do
             #   not simulate the early exit logic so the device_prediction is not used)
             device_output, device_prediction = device_model(device_input)
 
-            # We now could save the the intermediate output of the device models to disk via:
+            # We now could save the intermediate output of the device models to disk via:
             # torch.save(device_output, "device_output.pth")
             # internally torch.save() just uses pickle (see https://docs.python.org/3/library/pickle.html) to serialize
             # PyTorch objects. Instead of writing the device_output tensor to disc we could also directly serialize it
@@ -77,19 +76,19 @@ def trigger_device_and_cloud_models_separately(model, test_loader):
             # Instead of actually sending the device output over the network just append it to the device_outputs.
             device_outputs.append(device_output)
 
-        # Concatenate the output tensors of the devices - this part corresponds to the "cloud aggregator" component
-        # as described in the paper.
+        # Concatenate the output tensors of the devices - this part corresponds to the "cloud aggregator" component as
+        # described in the paper.
         cloud_input = torch.cat(device_outputs, dim=1)
 
-        # Invoke the cloud model with the concatenated data from the devices and compute the final
-        # classification of the DDNN.
+        # Invoke the cloud model with the concatenated data from the devices and compute the final classification of the
+        # DDNN.
         cloud_model_output = model.cloud_model(cloud_input)
         cloud_pool_output = model.pool(cloud_model_output)
         batch_size = batch_data.shape[0]
         normalized_output = cloud_pool_output.view(batch_size, -1)
         class_probabilities = model.classifier(normalized_output)
 
-        # The final classification of the DDNN which is a tensor of shape (batch_size, 1). For each of the
+        # Compute the final classification of the DDNN which is a tensor of shape (batch_size, 1). For each of the
         # samples in the current batch it holds the class label that has been predicted by the DDNN.
         predicted_classification = class_probabilities.max(1, keepdim=True)[1]
 
