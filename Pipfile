@@ -3,10 +3,17 @@ name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
 
+[[source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+verify_ssl = false
+
 [dev-packages]
 
 [packages]
 tqdm = "*"
+torch = "==1.6.0"
+torchvision = "==0.7.0"
 
 [requires]
 python_version = "3.8"
